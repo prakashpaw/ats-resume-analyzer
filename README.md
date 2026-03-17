@@ -44,7 +44,7 @@ cd ats-resume-analyzer
 docker compose up --build
 
 # Open in browser
-# http://localhost:3000
+# http://localhost:3000 -- everything here
 ```
 
 **Stop:**
