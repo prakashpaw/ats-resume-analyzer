@@ -1,0 +1,38 @@
+name: CI — Build & Verify
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate HTML
+        run: |
+          echo "Checking index.html exists..."
+          test -f public/index.html && echo "✓ index.html found"
+          test -f public/app.js    && echo "✓ app.js found"
+
+      - name: Build Docker image
+        run: |
+          docker build -t ats-resume-analyzer:ci .
+          echo "✓ Docker image built successfully"
+
+      - name: Smoke test container
+        run: |
+          docker run -d --name ats-test -p 3000:80 ats-resume-analyzer:ci
+          sleep 3
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000)
+          echo "HTTP status: $STATUS"
+          [ "$STATUS" = "200" ] && echo "✓ Smoke test passed" || (echo "✗ Smoke test failed" && exit 1)
+          docker stop ats-test && docker rm ats-test
+
+      - name: Success
+        run: echo "All checks passed ✓"

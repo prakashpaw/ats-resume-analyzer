@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ATS Resume Analyzer — Prakash Pawar</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f7f6f3;
+      --surface: #ffffff;
+      --surface2: #f0efe9;
+      --border: rgba(0,0,0,0.1);
+      --border2: rgba(0,0,0,0.18);
+      --text: #1a1a18;
+      --text2: #6b6b67;
+      --text3: #9e9e98;
+      --accent: #1D9E75;
+      --accent-dark: #0F6E56;
+      --accent-light: #E1F5EE;
+      --accent-border: #9FE1CB;
+      --warn: #BA7517;
+      --warn-light: #FAEEDA;
+      --warn-border: #FAC775;
+      --danger: #A32D2D;
+      --danger-light: #FCEBEB;
+      --danger-border: #F7C1C1;
+      --blue: #185FA5;
+      --amber: #BA7517;
+      --purple: #534AB7;
+      --coral: #D85A30;
+      --green: #3B6D11;
+      --radius: 10px;
+      --radius-sm: 6px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0f0f0e;
+        --surface: #1a1a18;
+        --surface2: #242420;
+        --border: rgba(255,255,255,0.1);
+        --border2: rgba(255,255,255,0.18);
+        --text: #f0efe9;
+        --text2: #9e9e98;
+        --text3: #6b6b67;
+        --accent-light: #04342C;
+        --accent-border: #0F6E56;
+        --warn-light: #412402;
+        --warn-border: #633806;
+        --danger-light: #501313;
+        --danger-border: #791F1F;
+      }
+    }
+
+    body {
+      font-family: 'Syne', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0;
+    }
+
+    header {
+      background: var(--surface);
+      border-bottom: 0.5px solid var(--border);
+      padding: 14px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .logo { font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+    .logo-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+    .header-badge {
+      font-size: 11px; padding: 3px 10px; border-radius: 100px;
+      background: var(--accent-light); color: var(--accent-dark);
+      border: 0.5px solid var(--accent-border); font-weight: 500;
+    }
+
+    main { max-width: 1100px; margin: 0 auto; padding: 28px 24px 60px; }
+
+    .hero { margin-bottom: 24px; }
+    .hero h1 { font-size: 26px; font-weight: 700; margin-bottom: 6px; }
+    .hero p { font-size: 13.5px; color: var(--text2); max-width: 560px; line-height: 1.6; }
+
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+
+    .card {
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+
+    .lbl {
+      font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase;
+      color: var(--text3); font-weight: 500; margin-bottom: 8px;
+    }
+
+    textarea {
+      width: 100%; height: 220px; font-family: 'DM Mono', monospace;
+      font-size: 12px; line-height: 1.7; background: var(--surface2);
+      border: 0.5px solid var(--border); border-radius: var(--radius-sm);
+      padding: 12px; color: var(--text); resize: vertical; outline: none;
+      transition: border-color .15s;
+    }
+    textarea:focus { border-color: var(--accent); }
+
+    .action-bar {
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .btn {
+      font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 500;
+      padding: 9px 18px; border-radius: var(--radius-sm); cursor: pointer;
+      transition: all .15s; border: 0.5px solid var(--border2);
+      background: var(--surface); color: var(--text);
+    }
+    .btn:hover { background: var(--surface2); }
+    .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .btn-primary:hover { background: var(--accent-dark); border-color: var(--accent-dark); }
+    .btn-ai {
+      background: var(--accent-light); color: var(--accent-dark);
+      border-color: var(--accent-border);
+    }
+    .btn-ai:hover { background: var(--accent-border); }
+    .status { font-size: 12px; color: var(--text3); }
+
+    .results { display: none; flex-direction: column; gap: 16px; }
+    .results.show { display: flex; }
+
+    .score-hero-card {
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      display: flex;
+      align-items: flex-start;
+      gap: 32px;
+      flex-wrap: wrap;
+    }
+
+    .score-block { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 100px; }
+    .score-num { font-size: 56px; font-weight: 700; line-height: 1; font-family: 'Syne', sans-serif; }
+    .score-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: .08em; }
+
+    .sub-scores { display: flex; flex-direction: column; gap: 10px; }
+    .sub-score-row { display: flex; align-items: center; gap: 12px; }
+    .sub-score-name { font-size: 12px; color: var(--text2); min-width: 80px; }
+    .mini-bar-bg { width: 140px; height: 5px; background: var(--surface2); border-radius: 3px; overflow: hidden; border: 0.5px solid var(--border); }
+    .mini-bar-fill { height: 100%; border-radius: 3px; transition: width .7s ease; }
+    .sub-score-val { font-size: 12px; font-weight: 500; min-width: 32px; }
+
+    .badge {
+      display: inline-block; font-size: 11px; font-weight: 500;
+      padding: 4px 12px; border-radius: 100px; border: 0.5px solid;
+    }
+    .badge-good { background: var(--accent-light); color: var(--accent-dark); border-color: var(--accent-border); }
+    .badge-mid { background: var(--warn-light); color: var(--warn); border-color: var(--warn-border); }
+    .badge-low { background: var(--danger-light); color: var(--danger); border-color: var(--danger-border); }
+
+    .cat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .cat-card { background: var(--surface2); border-radius: var(--radius-sm); padding: 12px; }
+    .cat-name { font-size: 10px; letter-spacing: .07em; text-transform: uppercase; color: var(--text3); margin-bottom: 5px; }
+    .cat-pct { font-size: 24px; font-weight: 600; line-height: 1; margin-bottom: 5px; }
+    .bar-bg { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 2px; transition: width .8s ease; }
+
+    .tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+    .tag { font-size: 10.5px; font-family: 'DM Mono', monospace; padding: 2px 8px; border-radius: 100px; border: 0.5px solid; }
+    .tg { background: var(--accent-light); color: var(--accent-dark); border-color: var(--accent-border); }
+    .tr { background: var(--danger-light); color: var(--danger); border-color: var(--danger-border); }
+
+    .checks-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .chk { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+    .ci { font-size: 13px; width: 18px; }
+
+    .mono-box {
+      font-family: 'DM Mono', monospace; font-size: 12.5px; line-height: 1.75;
+      background: var(--surface2); border-radius: var(--radius-sm);
+      padding: 14px; white-space: pre-wrap; color: var(--text);
+      border: 0.5px solid var(--border);
+    }
+
+    .bullet {
+      font-size: 13px; line-height: 1.6; padding: 8px 14px;
+      background: var(--surface2); border-radius: var(--radius-sm);
+      border-left: 2px solid var(--accent); margin-top: 6px;
+    }
+
+    .sec-title { font-size: 13px; font-weight: 500; margin-bottom: 10px; }
+    .divider { border: none; border-top: 0.5px solid var(--border); margin: 4px 0; }
+
+    .kw-section { display: flex; flex-direction: column; gap: 12px; }
+    .kw-row { display: flex; flex-direction: column; gap: 4px; }
+    .kw-cat-name { font-size: 10.5px; font-weight: 500; color: var(--text2); text-transform: uppercase; letter-spacing: .07em; }
+
+    .dl-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+
+    footer {
+      text-align: center; font-size: 11.5px; color: var(--text3);
+      padding: 24px; border-top: 0.5px solid var(--border);
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-dot"></div>
+    ATS Resume Analyzer
+  </div>
+  <span class="header-badge" id="top-badge">No score yet</span>
+</header>
+
+<main>
+  <div class="hero">
+    <h1>Match your resume to any job</h1>
+    <p>Paste a job description and your resume. Instant ATS keyword scoring, structure checks, tailored summary, and Claude-powered suggestions.</p>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <div class="lbl">Job Description</div>
+      <textarea id="jd" placeholder="Paste the full job description here…"></textarea>
+    </div>
+    <div class="card">
+      <div class="lbl">Your Resume</div>
+      <textarea id="cv"></textarea>
+    </div>
+  </div>
+
+  <div class="action-bar">
+    <button class="btn btn-primary" onclick="analyze()">Score ATS match</button>
+    <button class="btn" onclick="resetAll()">Reset</button>
+    <span class="status" id="msg"></span>
+  </div>
+
+  <div class="results" id="results">
+
+    <!-- Score hero -->
+    <div class="score-hero-card">
+      <div class="score-block">
+        <div class="score-num" id="s-num" style="color:var(--accent)">—</div>
+        <div class="score-label">ATS Score</div>
+        <div style="margin-top:6px" id="s-badge"></div>
+      </div>
+      <div class="sub-scores">
+        <div class="sub-score-row">
+          <span class="sub-score-name">Keywords</span>
+          <div class="mini-bar-bg"><div class="mini-bar-fill" id="bar-kw" style="background:var(--accent)"></div></div>
+          <span class="sub-score-val" id="v-kw">—</span>
+        </div>
+        <div class="sub-score-row">
+          <span class="sub-score-name">Structure</span>
+          <div class="mini-bar-bg"><div class="mini-bar-fill" id="bar-str" style="background:var(--blue)"></div></div>
+          <span class="sub-score-val" id="v-str">—</span>
+        </div>
+      </div>
+      <div style="flex:1;display:flex;flex-direction:column;gap:8px">
+        <div class="cat-grid" id="cat-grid"></div>
+      </div>
+    </div>
+
+    <!-- Structure checks -->
+    <div class="card">
+      <div class="sec-title">Structure checks</div>
+      <div class="checks-grid" id="chk-list"></div>
+    </div>
+
+    <!-- Keyword detail -->
+    <div class="card">
+      <div class="sec-title">
+        Keyword detail &nbsp;
+        <span class="tag tg" style="font-size:10px">matched</span>
+        &nbsp;
+        <span class="tag tr" style="font-size:10px">missing from JD</span>
+      </div>
+      <div class="kw-section" id="kw-detail"></div>
+    </div>
+
+    <!-- Summary -->
+    <div class="card">
+      <div class="sec-title">Tailored professional summary</div>
+      <div class="mono-box" id="summary-box">—</div>
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+        <button class="btn" style="font-size:12px" onclick="copySummary()">Copy</button>
+        <button class="btn btn-ai" onclick="askClaudeSummary()">Ask Claude to rewrite ↗</button>
+        <button class="btn btn-ai" onclick="askClaudeBullets()">Ask Claude for bullet ideas ↗</button>
+      </div>
+    </div>
+
+    <!-- Bullets -->
+    <div class="card" id="bullets-card" style="display:none">
+      <div class="sec-title">Suggested bullet additions</div>
+      <div id="bullets-list"></div>
+    </div>
+
+    <!-- Downloads -->
+    <div class="card">
+      <div class="sec-title">Export</div>
+      <div class="dl-row">
+        <button class="btn btn-primary" onclick="downloadPDF()">&#8681; Download Resume PDF</button>
+        <button class="btn" onclick="dlJSON()">Download JSON report</button>
+      </div>
+      <p style="font-size:11.5px;color:var(--text3);margin-top:10px">
+        Filename: <code style="font-family:monospace;font-size:11px;background:var(--surface2);padding:2px 6px;border-radius:4px">Prakash_Pawar_[Role]_[DDMMYYYY].pdf</code>
+      </p>
+    </div>
+
+  </div>
+</main>
+
+<footer>ATS Resume Analyzer · Built with Claude · Runs 100% in your browser · No data leaves your machine</footer>
+
+<script src="pdf-gen.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
