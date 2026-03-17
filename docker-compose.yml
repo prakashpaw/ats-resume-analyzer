@@ -1,0 +1,20 @@
+version: "3.9"
+
+services:
+  app:
+    build: .
+    container_name: ats-resume-analyzer
+    ports:
+      - "3000:80"
+    volumes:
+      # Hot-reload: mount public/ so you can edit files without rebuilding
+      - ./public:/usr/share/nginx/html:ro
+    restart: unless-stopped
+
+  # Optional: nginx proxy for HTTPS in dev (comment out if not needed)
+  # proxy:
+  #   image: nginx:1.25-alpine
+  #   ports:
+  #     - "443:443"
+  #   depends_on:
+  #     - app
