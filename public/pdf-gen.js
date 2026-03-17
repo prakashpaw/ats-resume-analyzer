@@ -1,242 +1,296 @@
 /**
- * MiniPDF v2 — zero-dependency, binary-safe PDF generator
- * Uses Uint8Array so xref byte offsets are always exact.
+ * MiniPDF — zero-dependency PDF generator
+ * Produces a valid single or multi-page A4 PDF using raw PDF syntax.
+ * Supports: text, font styles (normal/bold/italic), colour, lines, rects.
  */
 (function (global) {
   'use strict';
-  var A4W = 595.28, A4H = 841.89;
 
-  function strToBytes(s) {
-    var b = new Uint8Array(s.length);
-    for (var i = 0; i < s.length; i++) b[i] = s.charCodeAt(i) & 0xFF;
-    return b;
+  // ── A4 dimensions in points (72 pt = 1 inch) ─────────────────────────────
+  const A4W = 595.28, A4H = 841.89;
+
+  // ── PDF string helpers ────────────────────────────────────────────────────
+  function esc(s) {
+    // Map common Unicode typographic chars → WinAnsiEncoding byte equivalents
+    // (Helvetica uses /WinAnsiEncoding, so byte 0x95 = bullet •, 0x97 = em dash — etc.)
+    return String(s)
+      .replace(/\u2022/g, '\x95')   // bullet •
+      .replace(/\u2014/g, '\x97')   // em dash —
+      .replace(/\u2013/g, '\x96')   // en dash –
+      .replace(/\u2018|\u2019/g, "'") // curly single quotes
+      .replace(/\u201C|\u201D/g, '"') // curly double quotes
+      .replace(/[^\x20-\xFF]/g, ' ') // strip any remaining non-Latin-1
+      .replace(/\\/g, '\\\\')
+      .replace(/\(/g, '\\(')
+      .replace(/\)/g, '\\)');
   }
 
-  function concatBytes(arrs) {
-    var tot = 0;
-    for (var i = 0; i < arrs.length; i++) tot += arrs[i].length;
-    var out = new Uint8Array(tot), off = 0;
-    for (var i = 0; i < arrs.length; i++) { out.set(arrs[i], off); off += arrs[i].length; }
-    return out;
+  // ── Helvetica widths table (scaled /1000) ─────────────────────────────────
+  // Widths for chars 32–126 in Helvetica (standard PDF Type1 font)
+  const HV_W = [278,278,355,556,556,889,667,191,333,333,389,584,278,333,
+    278,278,556,556,556,556,556,556,556,556,556,556,278,278,584,584,584,
+    556,1015,667,667,722,722,667,611,778,722,278,500,667,556,833,722,778,
+    667,778,722,667,611,722,667,944,667,667,611,278,278,278,469,556,333,
+    556,556,500,556,556,278,556,556,222,222,500,222,833,556,556,556,556,
+    333,500,278,556,500,722,500,500,500,334,260,334,584];
+
+  function charWidth(c, size, bold) {
+    const code = c.charCodeAt(0);
+    if (code < 32 || code > 126) return size * 278 / 1000;
+    const w = HV_W[code - 32] || 556;
+    return size * w / 1000 * (bold ? 1.05 : 1);
   }
 
-  var HV_W = [278,278,355,556,556,889,667,191,333,333,389,584,278,333,278,278,
-    556,556,556,556,556,556,556,556,556,556,278,278,584,584,584,556,1015,667,
-    667,722,722,667,611,778,722,278,500,667,556,833,722,778,667,778,722,667,
-    611,722,667,944,667,667,611,278,278,278,469,556,333,556,556,500,556,556,
-    278,556,556,222,222,500,222,833,556,556,556,556,333,500,278,556,500,722,
-    500,500,500,334,260,334,584];
-
-  function glyphW(ch, sz, bold) {
-    var c = ch.charCodeAt(0);
-    if (c < 32 || c > 126) return sz * 278 / 1000;
-    return sz * (HV_W[c - 32] || 556) / 1000 * (bold ? 1.05 : 1);
-  }
-  function strW(s, sz, bold) {
-    var w = 0;
-    for (var i = 0; i < s.length; i++) w += glyphW(s[i], sz, bold);
+  function textWidth(str, size, bold) {
+    let w = 0;
+    for (const c of String(str)) w += charWidth(c, size, bold);
     return w;
   }
 
-  function pdfEsc(s) {
-    var o = '';
-    for (var i = 0; i < s.length; i++) {
-      var c = s.charCodeAt(i);
-      if (c === 40)  { o += '\\('; continue; }
-      if (c === 41)  { o += '\\)'; continue; }
-      if (c === 92)  { o += '\\\\'; continue; }
-      if (c === 0x2022 || c === 0x2024) { o += '\xb7'; continue; }
-      if (c === 0x2014 || c === 0x2013) { o += '-'; continue; }
-      if (c === 0x2019 || c === 0x2018) { o += "'"; continue; }
-      if (c === 0x201C || c === 0x201D) { o += '"'; continue; }
-      if (c === 0x2192) { o += '->'; continue; }
-      if (c < 32 || (c > 126 && c < 160)) { o += ' '; continue; }
-      if (c > 255) { o += '?'; continue; }
-      o += String.fromCharCode(c);
-    }
-    return o;
-  }
-
-  function splitLines(text, maxW, sz, bold) {
-    var words = String(text).replace(/\r?\n/g,' ').split(/\s+/).filter(Boolean);
-    if (!words.length) return [''];
-    var lines = [], line = '';
-    for (var wi = 0; wi < words.length; wi++) {
-      var word = words[wi];
-      var test = line ? line + ' ' + word : word;
-      if (strW(test, sz, bold) <= maxW) { line = test; }
-      else {
+  function splitLines(text, maxW, size, bold) {
+    const words = String(text).replace(/\r/g, '').split(/\s+/);
+    const lines = [];
+    let line = '';
+    for (const word of words) {
+      const test = line ? line + ' ' + word : word;
+      if (textWidth(test, size, bold) <= maxW) {
+        line = test;
+      } else {
         if (line) lines.push(line);
-        if (strW(word, sz, bold) > maxW) {
-          var chunk = '';
-          for (var ci = 0; ci < word.length; ci++) {
-            if (strW(chunk + word[ci], sz, bold) <= maxW) chunk += word[ci];
-            else { lines.push(chunk); chunk = word[ci]; }
+        // Handle very long single words
+        if (textWidth(word, size, bold) > maxW) {
+          let chunk = '';
+          for (const ch of word) {
+            if (textWidth(chunk + ch, size, bold) <= maxW) chunk += ch;
+            else { lines.push(chunk); chunk = ch; }
           }
           line = chunk;
-        } else { line = word; }
+        } else {
+          line = word;
+        }
       }
     }
     if (line) lines.push(line);
     return lines.length ? lines : [''];
   }
 
-  // ── MiniPDF ───────────────────────────────────────────────────────────────
+  // ── MiniPDF class ─────────────────────────────────────────────────────────
   function MiniPDF() {
-    this.pages  = [];
-    this._sz    = 10;
-    this._style = 'normal';
-    this._newPage();
+    this.pages    = [];          // array of page stream strings
+    this.curPage  = null;
+    this._fontSize  = 10;
+    this._fontStyle = 'normal';  // normal | bold | italic | bolditalic
+    this._r = 0; this._g = 0; this._b = 0;  // fill/text colour
+    this._lr = 0; this._lg = 0; this._lb = 0; // line colour
+    this._lw = 0.5;
+    this.addPage();
   }
 
-  MiniPDF.prototype._newPage = function () {
-    this._cur = [];
-    this.pages.push(this._cur);
-    this._emitFont();
-  };
-  MiniPDF.prototype._emitFont = function () {
-    var m = { normal:'Helv', bold:'HelvB', italic:'HelvO', bolditalic:'HelvBO' };
-    this._cur.push('/' + (m[this._style]||'Helv') + ' ' + this._sz + ' Tf');
-  };
-  MiniPDF.prototype.addPage    = function ()   { this._newPage(); };
-  MiniPDF.prototype.setFontSize= function (sz) { this._sz = sz;    this._emitFont(); };
-  MiniPDF.prototype.setFont    = function (st) { this._style = st; this._emitFont(); };
-  MiniPDF.prototype.setColor   = function (r,g,b) {
-    var s = (r/255).toFixed(3)+' '+(g/255).toFixed(3)+' '+(b/255).toFixed(3);
-    this._cur.push(s+' rg '+s+' RG');
-  };
-  MiniPDF.prototype.setLineColor = function (r,g,b) {
-    this._cur.push((r/255).toFixed(3)+' '+(g/255).toFixed(3)+' '+(b/255).toFixed(3)+' RG');
-  };
-  MiniPDF.prototype.setLineWidth = function (w) { this._cur.push(w+' w'); };
-  MiniPDF.prototype.setFillColor = function (r,g,b) {
-    this._cur.push((r/255).toFixed(3)+' '+(g/255).toFixed(3)+' '+(b/255).toFixed(3)+' rg');
-  };
-  MiniPDF.prototype._py = function (y) { return (A4H - y).toFixed(2); };
-  MiniPDF.prototype.text = function (str, x, y) {
-    this._cur.push('BT '+x.toFixed(2)+' '+this._py(y)+' Td ('+pdfEsc(String(str))+') Tj ET');
-  };
-  MiniPDF.prototype.fillRect = function (x,y,w,h,r,g,b) {
-    if (r !== undefined) this.setFillColor(r,g,b);
-    this._cur.push(x.toFixed(2)+' '+this._py(y+h)+' '+w.toFixed(2)+' '+h.toFixed(2)+' re f');
-  };
-  MiniPDF.prototype.hline = function (x1,y,x2) {
-    var py = this._py(y);
-    this._cur.push(x1.toFixed(2)+' '+py+' m '+x2.toFixed(2)+' '+py+' l S');
-  };
-  MiniPDF.prototype.getTextWidth  = function (s) {
-    return strW(String(s), this._sz, this._style==='bold'||this._style==='bolditalic');
-  };
-  MiniPDF.prototype.splitTextToSize = function (s, mW) {
-    return splitLines(String(s), mW, this._sz, this._style==='bold'||this._style==='bolditalic');
+  MiniPDF.prototype.addPage = function () {
+    this.curPage = [];
+    this.pages.push(this.curPage);
+    this._pushFont();
   };
 
-  // ── Build binary ──────────────────────────────────────────────────────────
+  MiniPDF.prototype._pushFont = function () {
+    const fontName = {
+      'normal': 'Helv', 'bold': 'HelvB', 'italic': 'HelvO', 'bolditalic': 'HelvBO'
+    }[this._fontStyle] || 'Helv';
+    this.curPage.push('/' + fontName + ' ' + this._fontSize + ' Tf');
+  };
+
+  MiniPDF.prototype.setFont = function (style) {
+    this._fontStyle = style;
+    this._pushFont();
+  };
+
+  MiniPDF.prototype.setFontSize = function (sz) {
+    this._fontSize = sz;
+    this._pushFont();
+  };
+
+  MiniPDF.prototype.setColor = function (r, g, b) {
+    this._r = r / 255; this._g = g / 255; this._b = b / 255;
+    // FIX: use the normalised (0-1) values in the PDF stream, not raw 0-255
+    this.curPage.push(
+      this._r.toFixed(3) + ' ' + this._g.toFixed(3) + ' ' + this._b.toFixed(3) +
+      ' rg ' +
+      this._r.toFixed(3) + ' ' + this._g.toFixed(3) + ' ' + this._b.toFixed(3) + ' RG'
+    );
+  };
+
+  MiniPDF.prototype.setLineColor = function (r, g, b) {
+    this._lr = r; this._lg = g; this._lb = b;
+    this.curPage.push(
+      (r/255).toFixed(3) + ' ' + (g/255).toFixed(3) + ' ' + (b/255).toFixed(3) + ' RG'
+    );
+  };
+
+  MiniPDF.prototype.setLineWidth = function (w) {
+    this._lw = w;
+    this.curPage.push(w + ' w');
+  };
+
+  MiniPDF.prototype.setFillColor = function (r, g, b) {
+    this.curPage.push(
+      (r/255).toFixed(3) + ' ' + (g/255).toFixed(3) + ' ' + (b/255).toFixed(3) + ' rg'
+    );
+  };
+
+  // PDF Y is from bottom; we accept top-down Y and flip
+  MiniPDF.prototype._py = function (y) { return A4H - y; };
+
+  MiniPDF.prototype.text = function (str, x, y) {
+    const py = this._py(y);
+    this.curPage.push(
+      'BT ' +
+      x.toFixed(2) + ' ' + py.toFixed(2) + ' Td ' +
+      '(' + esc(str) + ') Tj ' +
+      'ET'
+    );
+  };
+
+  // Draw filled rectangle (top-down coords)
+  MiniPDF.prototype.fillRect = function (x, y, w, h, r, g, b) {
+    if (r !== undefined) this.setFillColor(r, g, b);
+    const py = this._py(y + h);
+    this.curPage.push(x.toFixed(2) + ' ' + py.toFixed(2) + ' ' + w.toFixed(2) + ' ' + h.toFixed(2) + ' re f');
+  };
+
+  // Draw horizontal line
+  MiniPDF.prototype.hline = function (x1, y, x2) {
+    const py = this._py(y);
+    this.curPage.push(x1.toFixed(2) + ' ' + py.toFixed(2) + ' m ' + x2.toFixed(2) + ' ' + py.toFixed(2) + ' l S');
+  };
+
+  MiniPDF.prototype.getTextWidth = function (str) {
+    const bold = this._fontStyle === 'bold' || this._fontStyle === 'bolditalic';
+    return textWidth(str, this._fontSize, bold);
+  };
+
+  MiniPDF.prototype.splitTextToSize = function (str, maxW) {
+    const bold = this._fontStyle === 'bold' || this._fontStyle === 'bolditalic';
+    return splitLines(String(str), maxW, this._fontSize, bold);
+  };
+
+  // ── PDF binary output ─────────────────────────────────────────────────────
+  MiniPDF.prototype.save = function (filename) {
+    const str  = this._build();
+    // Convert to binary byte array (latin-1 / WinAnsi): charCode & 0xFF
+    // This preserves WinAnsi chars 0x80-0x9F (bullet=0x95, em-dash=0x97 etc.)
+    // that would otherwise be mangled by UTF-8 Blob encoding.
+    const bytes = new Uint8Array(str.length);
+    for (let i = 0; i < str.length; i++) bytes[i] = str.charCodeAt(i) & 0xFF;
+    const blob  = new Blob([bytes], { type: 'application/pdf' });
+    const url   = URL.createObjectURL(blob);
+    const a     = document.createElement('a');
+    a.href      = url;
+    a.download  = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); document.body.removeChild(a); }, 2000);
+  };
+
   MiniPDF.prototype._build = function () {
-    var parts = [], pos = 0;
-    function w(s) {
-      // s must be Latin-1 (all chars 0-255) — guaranteed by our escaping above
-      var b = strToBytes(s + '\n');
-      parts.push(b);
-      pos += b.length;
-    }
+    const parts = [];
+    const offsets = [];
+    let pos = 0;
+
+    function w(s) { parts.push(s + '\n'); pos += s.length + 1; }
 
     w('%PDF-1.4');
 
-    var fontDefs = [
-      {id:2,name:'Helv',  base:'Helvetica'},
-      {id:3,name:'HelvB', base:'Helvetica-Bold'},
-      {id:4,name:'HelvO', base:'Helvetica-Oblique'},
-      {id:5,name:'HelvBO',base:'Helvetica-BoldOblique'}
+    // ── Font resources (standard Type1 Helvetica family) ─────────────────
+    const fontObjStart = 2; // obj IDs: 2=Helv,3=HelvB,4=HelvO,5=HelvBO
+    const fontDefs = [
+      { id: 2, name: 'Helv',   base: 'Helvetica' },
+      { id: 3, name: 'HelvB',  base: 'Helvetica-Bold' },
+      { id: 4, name: 'HelvO',  base: 'Helvetica-Oblique' },
+      { id: 5, name: 'HelvBO', base: 'Helvetica-BoldOblique' }
     ];
-    var offsets = {};
-    for (var fi = 0; fi < fontDefs.length; fi++) {
-      var fd = fontDefs[fi];
-      offsets[fd.id] = pos;
-      w(fd.id+' 0 obj');
-      w('<< /Type /Font /Subtype /Type1 /BaseFont /'+fd.base);
+
+    const fontMap = {};
+    for (const f of fontDefs) {
+      offsets[f.id] = pos;
+      w(f.id + ' 0 obj');
+      w('<< /Type /Font /Subtype /Type1 /BaseFont /' + f.base);
       w('/Encoding /WinAnsiEncoding >>');
       w('endobj');
+      fontMap[f.name] = f.id;
     }
 
-    var cStart = 6, cIds = [];
-    for (var pi = 0; pi < this.pages.length; pi++) {
-      var oid = cStart + pi;
-      cIds.push(oid);
+    // ── Page content streams ──────────────────────────────────────────────
+    const pageContentIds = [];
+    const pageContentStart = fontDefs.length + 2; // 6+
+
+    for (let i = 0; i < this.pages.length; i++) {
+      const oid = pageContentStart + i;
+      pageContentIds.push(oid);
       offsets[oid] = pos;
-      var stream = this.pages[pi].join('\n');
-      var sb = strToBytes(stream);
-      w(oid+' 0 obj');
-      w('<< /Length '+sb.length+' >>');
+      const stream = this.pages[i].join('\n');
+      w(oid + ' 0 obj');
+      w('<< /Length ' + stream.length + ' >>');
       w('stream');
-      parts.push(sb); pos += sb.length;
-      w('\nendstream');
+      parts.push(stream + '\n'); pos += stream.length + 1;
+      w('endstream');
       w('endobj');
     }
 
-    var pStart = cStart + this.pages.length, pIds = [];
-    var fontRes = fontDefs.map(function(f){ return '/'+f.name+' '+f.id+' 0 R'; }).join(' ');
-    for (var pi = 0; pi < this.pages.length; pi++) {
-      var oid = pStart + pi;
-      pIds.push(oid);
+    // ── Page objects ──────────────────────────────────────────────────────
+    const pageObjStart = pageContentStart + this.pages.length;
+    const pageIds = [];
+
+    for (let i = 0; i < this.pages.length; i++) {
+      const oid = pageObjStart + i;
+      pageIds.push(oid);
       offsets[oid] = pos;
-      w(oid+' 0 obj');
+      w(oid + ' 0 obj');
       w('<< /Type /Page /Parent 1 0 R');
-      w('/MediaBox [0 0 '+A4W+' '+A4H+']');
-      w('/Contents '+cIds[pi]+' 0 R');
-      w('/Resources << /Font << '+fontRes+' >> >>');
-      w('>>');
+      w('/MediaBox [0 0 ' + A4W + ' ' + A4H + ']');
+      w('/Contents ' + pageContentIds[i] + ' 0 R');
+      w('/Resources << /Font <<');
+      for (const [name, fid] of Object.entries(fontMap)) {
+        w('  /' + name + ' ' + fid + ' 0 R');
+      }
+      w('>> >> >>');
       w('endobj');
     }
 
+    // ── Pages dictionary (obj 1) ──────────────────────────────────────────
     offsets[1] = pos;
     w('1 0 obj');
-    w('<< /Type /Pages /Kids ['+pIds.map(function(id){ return id+' 0 R'; }).join(' ')+']');
-    w('/Count '+this.pages.length+' >>');
+    w('<< /Type /Pages /Kids [' + pageIds.map(id => id + ' 0 R').join(' ') + ']');
+    w('/Count ' + this.pages.length + ' >>');
     w('endobj');
 
-    var catId = pStart + this.pages.length;
-    offsets[catId] = pos;
-    w(catId+' 0 obj');
+    // ── Catalog (obj 0) ───────────────────────────────────────────────────
+    const catalogId = pageObjStart + this.pages.length;
+    offsets[catalogId] = pos;
+    w(catalogId + ' 0 obj');
     w('<< /Type /Catalog /Pages 1 0 R >>');
     w('endobj');
 
-    var xrefPos = pos;
-    var maxId = catId;
+    // ── Cross-reference table ─────────────────────────────────────────────
+    const xrefPos = pos;
+    const maxId = catalogId;
     w('xref');
-    w('0 '+(maxId+1));
+    w('0 ' + (maxId + 1));
     w('0000000000 65535 f ');
-    for (var i = 1; i <= maxId; i++) {
-      var o = offsets[i] !== undefined ? offsets[i] : 0;
-      w(String(o).padStart(10,'0')+' 00000 n ');
+    for (let i = 1; i <= maxId; i++) {
+      const o = offsets[i] || 0;
+      w(String(o).padStart(10, '0') + ' 00000 n ');
     }
     w('trailer');
-    w('<< /Size '+(maxId+1)+' /Root '+catId+' 0 R >>');
+    w('<< /Size ' + (maxId + 1) + ' /Root ' + catalogId + ' 0 R >>');
     w('startxref');
     w(String(xrefPos));
     w('%%EOF');
 
-    return concatBytes(parts);
+    return parts.join('');
   };
 
-  MiniPDF.prototype.save = function (filename) {
-    var bytes = this._build();
-    var blob  = new Blob([bytes], { type: 'application/pdf' });
-    var url   = URL.createObjectURL(blob);
-    var a     = document.createElement('a');
-    a.href    = url;
-    a.download = filename;
-    a.style.display = 'none';
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(function() {
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    }, 3000);
-  };
-
-  global.MiniPDF     = MiniPDF;
+  global.MiniPDF = MiniPDF;
   global.MiniPDF.A4W = A4W;
   global.MiniPDF.A4H = A4H;
 
-}(typeof window !== 'undefined' ? window : global));
+})(window);

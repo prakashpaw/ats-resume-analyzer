@@ -3,219 +3,286 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Free ATS Resume Analyzer — keyword scoring, structure checks, tailored summary and PDF export. 100% client-side." />
   <title>ATS Resume Analyzer — Prakash Pawar</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg: #f7f6f3;
-      --surface: #ffffff;
-      --surface2: #f0efe9;
-      --border: rgba(0,0,0,0.1);
-      --border2: rgba(0,0,0,0.18);
-      --text: #1a1a18;
-      --text2: #6b6b67;
-      --text3: #9e9e98;
-      --accent: #1D9E75;
-      --accent-dark: #0F6E56;
-      --accent-light: #E1F5EE;
-      --accent-border: #9FE1CB;
-      --warn: #BA7517;
-      --warn-light: #FAEEDA;
-      --warn-border: #FAC775;
-      --danger: #A32D2D;
-      --danger-light: #FCEBEB;
-      --danger-border: #F7C1C1;
-      --blue: #185FA5;
-      --amber: #BA7517;
-      --purple: #534AB7;
-      --coral: #D85A30;
-      --green: #3B6D11;
-      --radius: 10px;
-      --radius-sm: 6px;
+      --bg: #f7f6f3; --surface: #ffffff; --surface2: #f0efe9;
+      --border: rgba(0,0,0,0.09); --border2: rgba(0,0,0,0.18);
+      --text: #1a1a18; --text2: #6b6b67; --text3: #9e9e98;
+      --accent: #1D9E75; --accent-dark: #0F6E56; --accent-light: #E1F5EE; --accent-border: #9FE1CB;
+      --warn: #BA7517; --warn-light: #FAEEDA; --warn-border: #FAC775;
+      --danger: #A32D2D; --danger-light: #FCEBEB; --danger-border: #F7C1C1;
+      --blue: #185FA5; --purple: #534AB7; --coral: #D85A30; --green: #3B6D11;
+      --radius: 12px; --radius-sm: 7px;
+      --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
     }
 
     @media (prefers-color-scheme: dark) {
       :root {
-        --bg: #0f0f0e;
-        --surface: #1a1a18;
-        --surface2: #242420;
-        --border: rgba(255,255,255,0.1);
-        --border2: rgba(255,255,255,0.18);
-        --text: #f0efe9;
-        --text2: #9e9e98;
-        --text3: #6b6b67;
-        --accent-light: #04342C;
-        --accent-border: #0F6E56;
-        --warn-light: #412402;
-        --warn-border: #633806;
-        --danger-light: #501313;
-        --danger-border: #791F1F;
+        --bg: #0f0f0e; --surface: #1a1a18; --surface2: #242420;
+        --border: rgba(255,255,255,0.08); --border2: rgba(255,255,255,0.16);
+        --text: #f0efe9; --text2: #9e9e98; --text3: #6b6b67;
+        --accent-light: #04342C; --accent-border: #0F6E56;
+        --warn-light: #412402; --warn-border: #633806;
+        --danger-light: #501313; --danger-border: #791F1F;
+        --shadow: 0 1px 3px rgba(0,0,0,0.3);
       }
     }
 
-    body {
-      font-family: 'Syne', sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-      padding: 0;
-    }
+    body { font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
 
+    /* ── Header ── */
     header {
-      background: var(--surface);
-      border-bottom: 0.5px solid var(--border);
-      padding: 14px 32px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      position: sticky;
-      top: 0;
-      z-index: 10;
+      background: var(--surface); border-bottom: 0.5px solid var(--border);
+      padding: 13px 28px; display: flex; align-items: center; justify-content: space-between;
+      position: sticky; top: 0; z-index: 20; gap: 12px;
     }
-
-    .logo { font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
-    .logo-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+    .logo { font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 9px; }
+    .logo-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px var(--accent-light); }
+    .header-right { display: flex; align-items: center; gap: 10px; }
     .header-badge {
-      font-size: 11px; padding: 3px 10px; border-radius: 100px;
+      font-size: 11px; padding: 3px 11px; border-radius: 100px;
       background: var(--accent-light); color: var(--accent-dark);
-      border: 0.5px solid var(--accent-border); font-weight: 500;
+      border: 0.5px solid var(--accent-border); font-weight: 600; transition: all .3s;
     }
+    #btn-share-hdr {
+      font-size: 11px; padding: 4px 12px; border-radius: 100px; cursor: pointer;
+      border: 0.5px solid var(--border2); background: var(--surface2); color: var(--text2);
+      font-family: 'Syne', sans-serif; font-weight: 500; display: none; transition: all .15s;
+    }
+    #btn-share-hdr:hover { border-color: var(--accent); color: var(--accent); }
 
-    main { max-width: 1100px; margin: 0 auto; padding: 28px 24px 60px; }
+    /* ── Main ── */
+    main { max-width: 1140px; margin: 0 auto; padding: 28px 20px 64px; }
 
-    .hero { margin-bottom: 24px; }
-    .hero h1 { font-size: 26px; font-weight: 700; margin-bottom: 6px; }
-    .hero p { font-size: 13.5px; color: var(--text2); max-width: 560px; line-height: 1.6; }
+    .hero { margin-bottom: 22px; }
+    .hero h1 { font-size: 24px; font-weight: 800; margin-bottom: 6px; letter-spacing: -.3px; }
+    .hero p { font-size: 13px; color: var(--text2); max-width: 540px; line-height: 1.65; }
 
-    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
-
+    /* ── Input Grid ── */
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 12px; }
     .card {
-      background: var(--surface);
-      border: 0.5px solid var(--border);
-      border-radius: var(--radius);
-      padding: 20px;
+      background: var(--surface); border: 0.5px solid var(--border);
+      border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow);
     }
-
-    .lbl {
-      font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase;
-      color: var(--text3); font-weight: 500; margin-bottom: 8px;
+    .card-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; gap: 8px; }
+    .lbl { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--text3); font-weight: 600; }
+    .btn-upload {
+      font-size: 11px; padding: 3px 10px; border-radius: 100px; cursor: pointer;
+      border: 0.5px dashed var(--border2); background: transparent; color: var(--text2);
+      font-family: 'Syne', sans-serif; font-weight: 500; transition: all .15s; white-space: nowrap;
     }
+    .btn-upload:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); border-style: solid; }
 
     textarea {
-      width: 100%; height: 220px; font-family: 'DM Mono', monospace;
-      font-size: 12px; line-height: 1.7; background: var(--surface2);
+      width: 100%; height: 210px; font-family: 'DM Mono', monospace;
+      font-size: 11.5px; line-height: 1.75; background: var(--surface2);
       border: 0.5px solid var(--border); border-radius: var(--radius-sm);
-      padding: 12px; color: var(--text); resize: vertical; outline: none;
-      transition: border-color .15s;
+      padding: 11px 12px; color: var(--text); resize: vertical; outline: none; transition: border-color .15s;
     }
     textarea:focus { border-color: var(--accent); }
+    .char-count { font-size: 10.5px; color: var(--text3); margin-top: 5px; text-align: right; font-family: 'DM Mono', monospace; }
 
+    /* ── Action Bar ── */
     .action-bar {
-      background: var(--surface);
-      border: 0.5px solid var(--border);
-      border-radius: var(--radius);
-      padding: 16px 20px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-      margin-bottom: 16px;
+      background: var(--surface); border: 0.5px solid var(--border);
+      border-radius: var(--radius); padding: 13px 18px;
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 16px;
     }
-
     .btn {
-      font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 500;
+      font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 600;
       padding: 9px 18px; border-radius: var(--radius-sm); cursor: pointer;
       transition: all .15s; border: 0.5px solid var(--border2);
-      background: var(--surface); color: var(--text);
+      background: var(--surface); color: var(--text); white-space: nowrap;
     }
     .btn:hover { background: var(--surface2); }
-    .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); position: relative; overflow: hidden; }
     .btn-primary:hover { background: var(--accent-dark); border-color: var(--accent-dark); }
-    .btn-ai {
-      background: var(--accent-light); color: var(--accent-dark);
-      border-color: var(--accent-border);
+    .btn-primary.loading { opacity: .8; pointer-events: none; padding-right: 36px; }
+    .btn-primary.loading::after {
+      content: ''; position: absolute; right: 12px; top: 50%; width: 13px; height: 13px;
+      border: 2px solid rgba(255,255,255,.35); border-top-color: #fff; border-radius: 50%;
+      transform: translateY(-50%); animation: spin .6s linear infinite;
     }
-    .btn-ai:hover { background: var(--accent-border); }
-    .status { font-size: 12px; color: var(--text3); }
+    @keyframes spin { to { transform: translateY(-50%) rotate(360deg); } }
+    .btn-ai { background: var(--accent-light); color: var(--accent-dark); border-color: var(--accent-border); }
+    .btn-ai:hover { background: var(--accent-border); color: #fff; }
+    .btn-ghost { background: transparent; border-color: var(--border2); color: var(--text2); }
+    .btn-ghost:hover { background: var(--surface2); color: var(--text); }
+    .status { font-size: 12px; color: var(--text3); flex: 1; }
 
-    .results { display: none; flex-direction: column; gap: 16px; }
+    /* ── Results ── */
+    .results { display: none; flex-direction: column; gap: 14px; }
     .results.show { display: flex; }
 
+    /* ── Score Hero Card ── */
     .score-hero-card {
-      background: var(--surface);
-      border: 0.5px solid var(--border);
-      border-radius: var(--radius);
-      padding: 24px;
-      display: flex;
-      align-items: flex-start;
-      gap: 32px;
-      flex-wrap: wrap;
+      background: var(--surface); border: 0.5px solid var(--border);
+      border-radius: var(--radius); padding: 22px 24px; box-shadow: var(--shadow);
+      display: flex; align-items: flex-start; gap: 28px; flex-wrap: wrap;
     }
 
-    .score-block { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 100px; }
-    .score-num { font-size: 56px; font-weight: 700; line-height: 1; font-family: 'Syne', sans-serif; }
-    .score-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: .08em; }
+    /* SVG Ring */
+    .score-ring-wrap { position: relative; width: 128px; height: 128px; flex-shrink: 0; }
+    .score-svg { width: 128px; height: 128px; }
+    .score-ring-track { fill: none; stroke: var(--surface2); stroke-width: 9; }
+    .score-ring-fill {
+      fill: none; stroke-width: 9; stroke-linecap: round;
+      stroke-dasharray: 339.292; stroke-dashoffset: 339.292;
+      transform: rotate(-90deg); transform-origin: 60px 60px;
+      transition: stroke-dashoffset 1.2s cubic-bezier(.34,1.56,.64,1), stroke .4s;
+    }
+    .score-inner {
+      position: absolute; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+    }
+    .score-num { font-size: 30px; font-weight: 800; line-height: 1; font-family: 'Syne', sans-serif; }
+    .score-label-sm { font-size: 9px; color: var(--text3); text-transform: uppercase; letter-spacing: .08em; margin-top: 2px; }
 
+    /* Score Meta */
+    .score-meta { display: flex; flex-direction: column; gap: 12px; min-width: 180px; }
     .sub-scores { display: flex; flex-direction: column; gap: 10px; }
-    .sub-score-row { display: flex; align-items: center; gap: 12px; }
-    .sub-score-name { font-size: 12px; color: var(--text2); min-width: 80px; }
-    .mini-bar-bg { width: 140px; height: 5px; background: var(--surface2); border-radius: 3px; overflow: hidden; border: 0.5px solid var(--border); }
-    .mini-bar-fill { height: 100%; border-radius: 3px; transition: width .7s ease; }
-    .sub-score-val { font-size: 12px; font-weight: 500; min-width: 32px; }
+    .sub-score-row { display: flex; align-items: center; gap: 10px; }
+    .sub-score-name { font-size: 11.5px; color: var(--text2); min-width: 72px; }
+    .mini-bar-bg { flex: 1; height: 5px; background: var(--surface2); border-radius: 3px; overflow: hidden; border: 0.5px solid var(--border); min-width: 100px; max-width: 130px; }
+    .mini-bar-fill { height: 100%; border-radius: 3px; transition: width .9s ease; width: 0; }
+    .sub-score-val { font-size: 11.5px; font-weight: 600; min-width: 34px; }
+    .score-tip { font-size: 11px; color: var(--text3); line-height: 1.5; }
 
-    .badge {
-      display: inline-block; font-size: 11px; font-weight: 500;
-      padding: 4px 12px; border-radius: 100px; border: 0.5px solid;
-    }
+    /* Category Grid */
+    .cat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; flex: 1; min-width: 280px; }
+    .cat-card { background: var(--surface2); border-radius: var(--radius-sm); padding: 10px 12px; }
+    .cat-name { font-size: 9px; letter-spacing: .07em; text-transform: uppercase; color: var(--text3); margin-bottom: 3px; font-weight: 600; }
+    .cat-pct { font-size: 20px; font-weight: 700; line-height: 1; margin-bottom: 4px; }
+    .bar-bg { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 2px; transition: width 1s ease; }
+
+    /* Badges */
+    .badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 4px 13px; border-radius: 100px; border: 0.5px solid; }
     .badge-good { background: var(--accent-light); color: var(--accent-dark); border-color: var(--accent-border); }
     .badge-mid { background: var(--warn-light); color: var(--warn); border-color: var(--warn-border); }
     .badge-low { background: var(--danger-light); color: var(--danger); border-color: var(--danger-border); }
 
-    .cat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-    .cat-card { background: var(--surface2); border-radius: var(--radius-sm); padding: 12px; }
-    .cat-name { font-size: 10px; letter-spacing: .07em; text-transform: uppercase; color: var(--text3); margin-bottom: 5px; }
-    .cat-pct { font-size: 24px; font-weight: 600; line-height: 1; margin-bottom: 5px; }
-    .bar-bg { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
-    .bar-fill { height: 100%; border-radius: 2px; transition: width .8s ease; }
-
-    .tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+    /* Tags */
+    .tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
     .tag { font-size: 10.5px; font-family: 'DM Mono', monospace; padding: 2px 8px; border-radius: 100px; border: 0.5px solid; }
     .tg { background: var(--accent-light); color: var(--accent-dark); border-color: var(--accent-border); }
     .tr { background: var(--danger-light); color: var(--danger); border-color: var(--danger-border); }
 
-    .checks-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    /* Checks */
+    .checks-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
     .chk { display: flex; align-items: center; gap: 8px; font-size: 13px; }
     .ci { font-size: 13px; width: 18px; }
 
+    /* Mono box */
     .mono-box {
-      font-family: 'DM Mono', monospace; font-size: 12.5px; line-height: 1.75;
+      font-family: 'DM Mono', monospace; font-size: 12px; line-height: 1.8;
       background: var(--surface2); border-radius: var(--radius-sm);
-      padding: 14px; white-space: pre-wrap; color: var(--text);
-      border: 0.5px solid var(--border);
+      padding: 13px; white-space: pre-wrap; color: var(--text); border: 0.5px solid var(--border);
     }
 
+    /* Bullets */
+    .bullet-row { display: flex; align-items: flex-start; gap: 10px; margin-top: 8px; }
     .bullet {
-      font-size: 13px; line-height: 1.6; padding: 8px 14px;
-      background: var(--surface2); border-radius: var(--radius-sm);
-      border-left: 2px solid var(--accent); margin-top: 6px;
+      flex: 1; font-size: 13px; line-height: 1.65; padding: 9px 14px;
+      background: var(--surface2); border-radius: var(--radius-sm); border-left: 2px solid var(--accent);
     }
+    .btn-copy-bullet {
+      font-size: 11px; padding: 6px 11px; border-radius: var(--radius-sm); cursor: pointer;
+      border: 0.5px solid var(--border2); background: var(--surface); color: var(--text2);
+      font-family: 'Syne', sans-serif; font-weight: 500; white-space: nowrap; transition: all .15s; flex-shrink: 0;
+    }
+    .btn-copy-bullet:hover { border-color: var(--accent); color: var(--accent); }
 
-    .sec-title { font-size: 13px; font-weight: 500; margin-bottom: 10px; }
-    .divider { border: none; border-top: 0.5px solid var(--border); margin: 4px 0; }
-
+    /* Keyword detail */
     .kw-section { display: flex; flex-direction: column; gap: 12px; }
     .kw-row { display: flex; flex-direction: column; gap: 4px; }
-    .kw-cat-name { font-size: 10.5px; font-weight: 500; color: var(--text2); text-transform: uppercase; letter-spacing: .07em; }
+    .kw-cat-name { font-size: 10px; font-weight: 600; color: var(--text2); text-transform: uppercase; letter-spacing: .07em; }
 
+    /* Section titles */
+    .sec-title { font-size: 13px; font-weight: 600; margin-bottom: 11px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     .dl-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
 
-    footer {
-      text-align: center; font-size: 11.5px; color: var(--text3);
-      padding: 24px; border-top: 0.5px solid var(--border);
+    /* History */
+    .history-section { margin-top: 20px; }
+    .history-toggle {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 18px; background: var(--surface); border: 0.5px solid var(--border);
+      border-radius: var(--radius); cursor: pointer; user-select: none; transition: background .15s;
     }
+    .history-toggle:hover { background: var(--surface2); }
+    .history-toggle-title { font-size: 13px; font-weight: 600; }
+    .history-toggle-badge {
+      font-size: 11px; padding: 2px 9px; border-radius: 100px;
+      background: var(--surface2); border: 0.5px solid var(--border2); color: var(--text2);
+    }
+    .history-toggle-chevron { font-size: 11px; color: var(--text3); transition: transform .2s; }
+    .history-toggle.open .history-toggle-chevron { transform: rotate(180deg); }
+    .history-body { display: none; flex-direction: column; gap: 8px; margin-top: 8px; }
+    .history-body.open { display: flex; }
+    .history-item {
+      background: var(--surface); border: 0.5px solid var(--border);
+      border-radius: var(--radius-sm); padding: 12px 16px;
+      display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    }
+    .history-score { font-size: 22px; font-weight: 800; font-family: 'Syne', sans-serif; min-width: 52px; }
+    .history-meta { flex: 1; }
+    .history-jd { font-size: 12px; color: var(--text); margin-bottom: 3px; }
+    .history-date { font-size: 10.5px; color: var(--text3); font-family: 'DM Mono', monospace; }
+    .history-empty { font-size: 12px; color: var(--text3); padding: 12px 16px; }
+
+    /* Share banner */
+    .share-banner {
+      background: var(--accent-light); border: 0.5px solid var(--accent-border);
+      border-radius: var(--radius); padding: 12px 18px; display: none;
+      align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;
+    }
+    .share-banner.show { display: flex; }
+    .share-banner-text { font-size: 13px; color: var(--accent-dark); flex: 1; }
+
+    footer { text-align: center; font-size: 11px; color: var(--text3); padding: 22px; border-top: 0.5px solid var(--border); }
+
+    /* ── Mobile ── */
+    @media (max-width: 768px) {
+      .grid2 { grid-template-columns: 1fr; }
+      .score-hero-card { flex-direction: row; flex-wrap: wrap; gap: 20px; }
+      .cat-grid { grid-template-columns: repeat(3, 1fr); min-width: unset; }
+      .checks-grid { grid-template-columns: 1fr; }
+      main { padding: 18px 14px 48px; }
+      .hero h1 { font-size: 20px; }
+      header { padding: 11px 16px; }
+    }
+    @media (max-width: 520px) {
+      .score-hero-card { flex-direction: column; align-items: center; }
+      .score-meta { width: 100%; }
+      .cat-grid { grid-template-columns: repeat(3, 1fr); width: 100%; min-width: unset; }
+      .mini-bar-bg { max-width: unset; }
+    }
+
+    /* ── Print ── */
+    @media print {
+      header, .action-bar, .hero, .grid2, footer, .history-section,
+      .dl-row, .btn-ai, .btn, #bullets-card { display: none !important; }
+      .results { display: flex !important; }
+      body { background: #fff; }
+      .card, .score-hero-card { border: 0.5px solid #ddd !important; box-shadow: none !important; break-inside: avoid; }
+      .score-num { font-size: 22px !important; }
+    }
+
+    /* ── Fade-in for results sections ── */
+    @keyframes fadeUp { from { opacity:0; transform: translateY(10px); } to { opacity:1; transform: translateY(0); } }
+    .results > * { animation: fadeUp .35s ease both; }
+    .results > *:nth-child(1) { animation-delay:.05s; }
+    .results > *:nth-child(2) { animation-delay:.12s; }
+    .results > *:nth-child(3) { animation-delay:.18s; }
+    .results > *:nth-child(4) { animation-delay:.24s; }
+    .results > *:nth-child(5) { animation-delay:.30s; }
+    .results > *:nth-child(6) { animation-delay:.36s; }
   </style>
 </head>
 <body>
@@ -225,29 +292,49 @@
     <div class="logo-dot"></div>
     ATS Resume Analyzer
   </div>
-  <span class="header-badge" id="top-badge">No score yet</span>
+  <div class="header-right">
+    <button id="btn-share-hdr" onclick="shareReport()" title="Copy shareable link">↗ Share</button>
+    <span class="header-badge" id="top-badge">No score yet</span>
+  </div>
 </header>
 
 <main>
   <div class="hero">
     <h1>Match your resume to any job</h1>
-    <p>Paste a job description and your resume. Instant ATS keyword scoring, structure checks, tailored summary, and Claude-powered suggestions.</p>
+    <p>Paste a JD and your resume for instant ATS keyword scoring, structure checks, tailored summary, and AI-powered bullet suggestions. Runs 100% in your browser.</p>
+  </div>
+
+  <!-- Shared score banner -->
+  <div class="share-banner" id="share-banner">
+    <div class="share-banner-text" id="share-banner-text">Viewing a shared ATS result</div>
+    <button class="btn" style="font-size:12px" onclick="document.getElementById('share-banner').classList.remove('show')">Dismiss</button>
   </div>
 
   <div class="grid2">
     <div class="card">
-      <div class="lbl">Job Description</div>
+      <div class="card-hdr">
+        <div class="lbl">Job Description</div>
+        <button class="btn-upload" id="upload-jd-btn">↑ Upload .txt</button>
+        <input type="file" id="upload-jd" accept=".txt,.md" hidden />
+      </div>
       <textarea id="jd" placeholder="Paste the full job description here…"></textarea>
+      <div class="char-count" id="jd-count">0 words</div>
     </div>
     <div class="card">
-      <div class="lbl">Your Resume</div>
-      <textarea id="cv"></textarea>
+      <div class="card-hdr">
+        <div class="lbl">Your Resume</div>
+        <button class="btn-upload" id="upload-cv-btn">↑ Upload .txt</button>
+        <input type="file" id="upload-cv" accept=".txt,.md" hidden />
+      </div>
+      <textarea id="cv" placeholder="Paste your resume text here&#10;&#10;Include sections like:&#10;• Professional Summary&#10;• Technical Skills&#10;• Work Experience&#10;• Projects&#10;• Education&#10;&#10;Tip: Copy plain text from your Word/PDF resume."></textarea>
+      <div class="char-count" id="cv-count">0 words</div>
     </div>
   </div>
 
   <div class="action-bar">
-    <button class="btn btn-primary" onclick="analyze()">Score ATS match</button>
+    <button class="btn btn-primary" id="score-btn" onclick="analyze()">Score ATS match</button>
     <button class="btn" onclick="resetAll()">Reset</button>
+    <button class="btn btn-ghost" id="btn-print" onclick="window.print()" style="display:none">Print</button>
     <span class="status" id="msg"></span>
   </div>
 
@@ -255,26 +342,35 @@
 
     <!-- Score hero -->
     <div class="score-hero-card">
-      <div class="score-block">
-        <div class="score-num" id="s-num" style="color:var(--accent)">—</div>
-        <div class="score-label">ATS Score</div>
-        <div style="margin-top:6px" id="s-badge"></div>
-      </div>
-      <div class="sub-scores">
-        <div class="sub-score-row">
-          <span class="sub-score-name">Keywords</span>
-          <div class="mini-bar-bg"><div class="mini-bar-fill" id="bar-kw" style="background:var(--accent)"></div></div>
-          <span class="sub-score-val" id="v-kw">—</span>
-        </div>
-        <div class="sub-score-row">
-          <span class="sub-score-name">Structure</span>
-          <div class="mini-bar-bg"><div class="mini-bar-fill" id="bar-str" style="background:var(--blue)"></div></div>
-          <span class="sub-score-val" id="v-str">—</span>
+      <div class="score-ring-wrap">
+        <svg class="score-svg" viewBox="0 0 120 120" aria-label="ATS score ring">
+          <circle class="score-ring-track" cx="60" cy="60" r="54"/>
+          <circle class="score-ring-fill" id="score-ring" cx="60" cy="60" r="54" stroke="var(--accent)"/>
+        </svg>
+        <div class="score-inner">
+          <div class="score-num" id="s-num" style="color:var(--accent)">0%</div>
+          <div class="score-label-sm">ATS Score</div>
         </div>
       </div>
-      <div style="flex:1;display:flex;flex-direction:column;gap:8px">
-        <div class="cat-grid" id="cat-grid"></div>
+
+      <div class="score-meta">
+        <div id="s-badge"></div>
+        <div class="sub-scores" style="margin-top:10px">
+          <div class="sub-score-row">
+            <span class="sub-score-name">Keywords</span>
+            <div class="mini-bar-bg"><div class="mini-bar-fill" id="bar-kw" style="background:var(--accent)"></div></div>
+            <span class="sub-score-val" id="v-kw">—</span>
+          </div>
+          <div class="sub-score-row">
+            <span class="sub-score-name">Structure</span>
+            <div class="mini-bar-bg"><div class="mini-bar-fill" id="bar-str" style="background:var(--blue)"></div></div>
+            <span class="sub-score-val" id="v-str">—</span>
+          </div>
+        </div>
+        <div class="score-tip" id="score-tip"></div>
       </div>
+
+      <div class="cat-grid" id="cat-grid"></div>
     </div>
 
     <!-- Structure checks -->
@@ -287,21 +383,20 @@
     <div class="card">
       <div class="sec-title">
         Keyword detail &nbsp;
-        <span class="tag tg" style="font-size:10px">matched</span>
-        &nbsp;
+        <span class="tag tg" style="font-size:10px">matched</span>&nbsp;
         <span class="tag tr" style="font-size:10px">missing from JD</span>
       </div>
       <div class="kw-section" id="kw-detail"></div>
     </div>
 
-    <!-- Summary -->
+    <!-- Tailored summary -->
     <div class="card">
       <div class="sec-title">Tailored professional summary</div>
       <div class="mono-box" id="summary-box">—</div>
       <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
         <button class="btn" style="font-size:12px" onclick="copySummary()">Copy</button>
         <button class="btn btn-ai" onclick="askClaudeSummary()">Ask Claude to rewrite ↗</button>
-        <button class="btn btn-ai" onclick="askClaudeBullets()">Ask Claude for bullet ideas ↗</button>
+        <button class="btn btn-ai" onclick="askClaudeBullets()">Ask Claude for bullets ↗</button>
       </div>
     </div>
 
@@ -311,22 +406,36 @@
       <div id="bullets-list"></div>
     </div>
 
-    <!-- Downloads -->
+    <!-- Export -->
     <div class="card">
       <div class="sec-title">Export</div>
       <div class="dl-row">
-        <button class="btn btn-primary" onclick="downloadPDF()">&#8681; Download Resume PDF</button>
-        <button class="btn" onclick="dlJSON()">Download JSON report</button>
+        <button class="btn btn-primary" onclick="downloadPDF()">⬇ Download PDF</button>
+        <button class="btn" onclick="dlTXT()">⬇ Tailored Resume .txt</button>
+        <button class="btn" onclick="dlJSON()">⬇ JSON Report</button>
       </div>
-      <p style="font-size:11.5px;color:var(--text3);margin-top:10px">
-        Filename: <code style="font-family:monospace;font-size:11px;background:var(--surface2);padding:2px 6px;border-radius:4px">Prakash_Pawar_[Role]_[DDMMYYYY].pdf</code>
+      <p style="font-size:11px;color:var(--text3);margin-top:10px">
+        Filename: <code style="font-family:monospace;font-size:10.5px;background:var(--surface2);padding:2px 6px;border-radius:4px">Prakash_Pawar_[Role]_[DDMMYYYY]</code>
       </p>
     </div>
 
+  </div><!-- /results -->
+
+  <!-- History Section -->
+  <div class="history-section" id="history-section">
+    <div class="history-toggle" id="history-toggle" onclick="toggleHistory()">
+      <span class="history-toggle-title">Past analyses</span>
+      <span class="history-toggle-badge" id="history-count">0 saved</span>
+      <span class="history-toggle-chevron">▼</span>
+    </div>
+    <div class="history-body" id="history-body">
+      <div class="history-empty" id="history-empty">No past analyses yet. Run a score to save one.</div>
+    </div>
   </div>
+
 </main>
 
-<footer>ATS Resume Analyzer · Built with Claude · Runs 100% in your browser · No data leaves your machine</footer>
+<footer>ATS Resume Analyzer · Built with ♥ using Claude · 100% client-side · No data leaves your browser</footer>
 
 <script src="pdf-gen.js"></script>
 <script src="app.js"></script>
